@@ -7,11 +7,14 @@ class InvalidIdException(Exception):
 class InvalidPriceException(Exception):
     pass
 
+def check_ids(message, *ids):
+    for id in ids:
+        if id < 0:
+            raise InvalidIdException(message)
 
 class Entity:
     def __init__(self, id, name, city, address):
-        if id < 0:
-            raise InvalidIdException(f"{__name__} ID must be non negative")
+        check_ids(f"{__name__} ID must be non negative", id)
 
         self.id = id
         self.name = name
@@ -91,8 +94,7 @@ class Product:
     """
 
     def __init__(self, id, name, price, supplier_id, quantity):
-        if (id < 0) or (supplier_id < 0):
-            raise InvalidIdException(f"{__name__} ID must be non negative")
+        check_ids(f"{__name__} ID must be non negative", id, supplier_id)
 
         if price < 0:
             raise InvalidPriceException(f"{__name__} Price must be non negative")
@@ -131,9 +133,9 @@ class Order:
             Order(id=1, customer_id=42, product_id=101, quantity=10, total_price=299.9)
 
     """
+
     def __init__(self, id, customer_id, product_id, quantity, total_price):
-        if (id < 0) or (product_id < 0):
-            raise InvalidIdException(f"{__name__} ID must be non negative")
+        check_ids(f"{__name__} ID must be non negative", id, product_id)
 
         if total_price < 0:
             raise InvalidPriceException(f"{__name__} Price must be non negative")
@@ -147,6 +149,7 @@ class Order:
     # TODO implement this class as instructed
     def __repr__(self):
         return f"Order(id={self.id}, customer_id={self.customer_id}, product_id={self.product_id}, quantity={self.quantity}, total_price={self.total_price})"
+
 
 class MatamazonSystem:
     """
@@ -176,10 +179,10 @@ class MatamazonSystem:
             - Internal collections may be chosen freely (dict/list, etc.).
         """
         # TODO implement this method if needed
-        self.customers = {} #dictionary(id,costumer)
-        self.suppliers = {} #dictionary(id,supplier)
-        self.products = {} #dictionary(id,product)
-        self.orders = {} #dictionary(id,order)
+        self.customers = {}  # dictionary(id,costumer)
+        self.suppliers = {}  # dictionary(id,supplier)
+        self.products = {}  # dictionary(id,product)
+        self.orders = {}  # dictionary(id,order)
         self.next_id = 1
 
     def register_entity(self, entity, is_customer):
@@ -197,8 +200,7 @@ class MatamazonSystem:
                   customers AND suppliers).
         """
         # TODO implement this method as instructed
-        if entity.id < 0:
-            raise InvalidIdException(f"Customer id {entity.id} must be non negative")
+        check_ids(f"Customer id {entity.id} must be non negative", entity.id)
 
         if is_customer:
             if entity.id in self.customers:
@@ -230,7 +232,8 @@ class MatamazonSystem:
         """
         # TODO implement this method as instructed
         if product.supplier_id not in self.suppliers:
-            raise InvalidIdException(f"Product {product} is given with supplier id {product.supplier_id} that matches no supplier.")
+            raise InvalidIdException(
+                f"Product {product} is given with supplier id {product.supplier_id} that matches no supplier.")
 
         if product.id in self.products:
             old_product = self.products[product.id]
@@ -268,9 +271,29 @@ class MatamazonSystem:
             - The specification assumes quantity is an integer.
         """
         # TODO implement this method as instructed
-        pass
+        if product_id not in self.products:
+            return "The product does not exist in the system"
+
+        product = self.products[product_id]
+        if quantity > product.quantity:
+            return "The quantity requested for this product is greater than the quantity in stock."
+
+        product.quantity -= quantity
+        total_price = product.price * quantity
+        order = Order(
+            id=self.next_id,
+            customer_id=customer_id,
+            product_id=product_id,
+            quantity=quantity,
+            total_price=total_price
+        )
+
+        self.orders[order.id] = order
+        self.next_id += 1
+        return "The order has been accepted in the system"
 
     def remove_object(self, _id, class_type):
+
         """
         Remove an object from the system by ID and type.
 
@@ -292,7 +315,43 @@ class MatamazonSystem:
                 - Additional InvalidIdException conditions as required by specification.
         """
         # TODO implement this method as instructed
-        pass
+        check_ids(f"Remove object id {_id} must be non negative", id)
+        class_type_clean = class_type.strip().lower()
+        if class_type_clean == "order":
+            if _id in self.orders:
+                order = self.orders.pop(_id)
+                if order.product_id in self.products:
+                    self.products[order.product_id] += order.quantity
+                return order.quantity
+            return None
+
+        elif class_type_clean == "customer":
+            for order in self.orders.values():
+                if order.customer_id == _id:
+                    raise InvalidIdException("Cannot remove customer - still in use in existing orders")
+
+            if _id in self.customers:
+                self.customers.pop(_id)
+
+        elif class_type_clean == "supplier":
+            for order in self.orders.values():
+                order_product = self.products[order.product_id]
+                if order_product.supplier_id == _id:
+                    raise InvalidIdException("Cannot remove supplier - still in use in existing orders")
+
+            if _id in self.suppliers:
+                self.suppliers.pop(_id)
+
+        elif class_type_clean == "product":
+            for order in self.orders.values():
+                if order.product_id == _id:
+                    raise InvalidIdException("Cannot remove product - still in use in existing orders")
+
+            if _id in self.products:
+                self.products.pop(_id)
+
+        return None
+
 
     def search_products(self, query, max_price=None):
         """
