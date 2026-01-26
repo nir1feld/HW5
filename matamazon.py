@@ -1,6 +1,29 @@
 # TODO add all imports needed here
 
-class Customer:
+class InvalidIdException(Exception):
+    pass
+
+
+class InvalidPriceException(Exception):
+    pass
+
+
+class Entity:
+    def __init__(self, id, name, city, address):
+        if id < 0:
+            raise InvalidIdException(f"{__name__} ID must be non negative")
+
+        self.id = id
+        self.name = name
+        self.city = city
+        self.address = address
+
+    def __rpr__(self):
+        class_name = type(self).__name__
+        return f"{class_name}(id='{self.id}', name='{self.name}', city ='{self.city}, address={self.address})"
+
+
+class Customer(Entity):
     """
     Represents a customer in the Matamazon system.
 
@@ -23,7 +46,7 @@ class Customer:
     pass
 
 
-class Supplier:
+class Supplier(Entity):
     """
     Represents a supplier in the Matamazon system.
 
@@ -67,8 +90,23 @@ class Product:
             Product(id=101, name='Harry Potter Cushion', price=29.99, supplier_id=42, quantity=555)
     """
 
+    def __init__(self, id, name, price, supplier_id, quantity):
+        if (id < 0) or (supplier_id < 0):
+            raise InvalidIdException(f"{__name__} ID must be non negative")
+
+        if price < 0:
+            raise InvalidPriceException(f"{__name__} Price must be non negative")
+
+        self.id = id
+        self.name = name
+        self.price = price
+        self.supplier_id = supplier_id
+        self.quantity = quantity
+
     # TODO implement this class as instructed
-    pass
+
+    def __rpr__(self):
+        return f"Product(id='{self.id}', name='{self.name}', price ='{self.price}, supplier_id={self.supplier_id}, quantity={self.quantity})"
 
 
 class Order:
@@ -93,10 +131,22 @@ class Order:
             Order(id=1, customer_id=42, product_id=101, quantity=10, total_price=299.9)
 
     """
+    def __init__(self, id, customer_id, product_id, quantity, total_price):
+        if (id < 0) or (product_id < 0):
+            raise InvalidIdException(f"{__name__} ID must be non negative")
+
+        if total_price < 0:
+            raise InvalidPriceException(f"{__name__} Price must be non negative")
+
+        self.id = id
+        self.customer_id = customer_id
+        self.product_id = product_id
+        self.quantity = quantity
+        self.total_price = total_price
 
     # TODO implement this class as instructed
-    pass
-
+    def __repr__(self):
+        return f"Order(id={self.id}, customer_id={self.customer_id}, product_id={self.product_id}, quantity={self.quantity}, total_price={self.total_price})"
 
 class MatamazonSystem:
     """
@@ -126,7 +176,11 @@ class MatamazonSystem:
             - Internal collections may be chosen freely (dict/list, etc.).
         """
         # TODO implement this method if needed
-        pass
+        self.customers = {} #dictionary(id,costumer)
+        self.suppliers = {} #dictionary(id,supplier)
+        self.products = {} #dictionary(id,product)
+        self.orders = {} #dictionary(id,order)
+        self.next_id = 1
 
     def register_entity(self, entity, is_customer):
         """
@@ -143,7 +197,17 @@ class MatamazonSystem:
                   customers AND suppliers).
         """
         # TODO implement this method as instructed
-        pass
+        if entity.id < 0:
+            raise InvalidIdException(f"Customer id {entity.id} must be non negative")
+
+        if is_customer:
+            if entity.id in self.customers:
+                raise InvalidIdException(f"Customer id {entity.id} is already taken.")
+            self.customers[entity.id] = entity
+        else:
+            if entity.id in self.suppliers:
+                raise InvalidIdException(f"Supplier id {entity.id} is already taken.")
+            self.suppliers[entity.id] = entity
 
     def add_or_update_product(self, product):
         """
@@ -165,7 +229,16 @@ class MatamazonSystem:
                 - If attempting to update a product but supplier_id differs from the existing product.
         """
         # TODO implement this method as instructed
-        pass
+        if product.supplier_id not in self.suppliers:
+            raise InvalidIdException(f"Product {product} is given with supplier id {product.supplier_id} that matches no supplier.")
+
+        if product.id in self.products:
+            old_product = self.products[product.id]
+            if old_product.supplier_id != product.supplier_id:
+                raise InvalidIdException(f"Product {product} is given with un matching supplier id")
+            self.products[product.id] = product
+        else:
+            self.products[product.id] = product
 
     def place_order(self, customer_id, product_id, quantity=1):
         """
