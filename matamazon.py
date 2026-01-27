@@ -7,10 +7,12 @@ class InvalidIdException(Exception):
 class InvalidPriceException(Exception):
     pass
 
+
 def check_ids(message, *ids):
     for id in ids:
         if id < 0:
             raise InvalidIdException(message)
+
 
 class Entity:
     def __init__(self, id, name, city, address):
@@ -109,6 +111,9 @@ class Product:
 
     def __rpr__(self):
         return f"Product(id='{self.id}', name='{self.name}', price ='{self.price}, supplier_id={self.supplier_id}, quantity={self.quantity})"
+
+    def __lt__(self, other):
+        return self.price < other.price
 
 
 class Order:
@@ -352,7 +357,6 @@ class MatamazonSystem:
 
         return None
 
-
     def search_products(self, query, max_price=None):
         """
         Search products by query in the product name, and optionally filter by max_price.
@@ -368,7 +372,18 @@ class MatamazonSystem:
                 - If no matching products exist, return an empty list.
         """
         # TODO implement this method as instructed
-        pass
+        result = []
+        for product in self.products.values():
+            if product.quantity <= 0:
+                continue
+
+            if query in product.name:
+                if max_price is None:
+                    result.append(product)
+                elif product.price <= max_price:
+                    result.append(product)
+
+        return sorted(result)
 
     def export_system_to_file(self, path):
         """
