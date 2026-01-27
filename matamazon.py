@@ -337,7 +337,7 @@ class MatamazonSystem:
                     raise InvalidIdException("Cannot remove customer - still in use in existing orders")
 
             if _id in self.customers:
-                self.customers.pop(_id)
+                del self.customers[_id]
 
         elif class_type_clean == "supplier":
             for order in self.orders.values():
@@ -346,7 +346,7 @@ class MatamazonSystem:
                     raise InvalidIdException("Cannot remove supplier - still in use in existing orders")
 
             if _id in self.suppliers:
-                self.suppliers.pop(_id)
+                del self.suppliers[_id]
 
         elif class_type_clean == "product":
             for order in self.orders.values():
@@ -354,7 +354,7 @@ class MatamazonSystem:
                     raise InvalidIdException("Cannot remove product - still in use in existing orders")
 
             if _id in self.products:
-                self.products.pop(_id)
+                del self.products[_id]
 
         return None
 
@@ -457,6 +457,7 @@ class MatamazonSystem:
         except Exception as e:
             raise e
 
+
 def load_system_from_file(path):
     """
     Load a MatamazonSystem from an input file.
@@ -478,6 +479,34 @@ def load_system_from_file(path):
         - The assignment hints that eval() may be used.
     """
     # TODO implement this function as instructed
-    pass
+    system = MatamazonSystem()
+    try:
+        with open(path, 'r') as file:
+            for line in file:
+                line = line.strip()
+                if line.isspace():
+                    continue
+
+                try:
+                    val = eval(line, {"Customer": Customer,
+                                      "Supplier": Supplier,
+                                      "Product": Product,
+                                      "Order": Order})
+
+                    if isinstance(val, Customer):
+                        system.customers[val.id] = val
+
+                    elif isinstance(val, Supplier):
+                        system.suppliers[val.id] = val
+
+                    elif isinstance(val, Product):
+                        system.products[val.id] = val
+
+                except Exception:
+                    continue
+    except Exception as e:
+        raise e
+
+    return system
 
 # TODO all the main part here
