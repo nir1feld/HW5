@@ -1,4 +1,5 @@
 # TODO add all imports needed here
+import json
 
 class InvalidIdException(Exception):
     pass
@@ -401,7 +402,18 @@ class MatamazonSystem:
             OSError (or any file-open exception): Must be propagated to the caller.
         """
         # TODO implement this method as instructed
-        pass
+        try:
+            with open(path, 'w') as file:
+                for customer in self.customers.values():
+                    file.write(f"{customer}\n")
+
+                for supplier in self.suppliers.values():
+                    file.write(f"{supplier}\n")
+
+                for product in self.products.values():
+                    file.write(f"{product}\n")
+        except Exception as e:
+            raise e
 
     def export_orders(self, out_file):
         """
@@ -424,8 +436,26 @@ class MatamazonSystem:
             - The order origin city is the supplier city of the ordered product.
         """
         # TODO implement this method as instructed
-        pass
+        sorted_by_city = {}
 
+        for order in self.orders.values():
+            if order.product_id not in self.products:
+                continue
+
+            product = self.products[order.product_id]
+            if product.supplier_id not in self.suppliers:
+                continue
+
+            supplier = self.suppliers[product.supplier_id]
+            if supplier.city not in sorted_by_city:
+                sorted_by_city[supplier.city] = []
+
+            sorted_by_city[supplier.city].append(f"{order}")
+
+        try:
+            json.dump(sorted_by_city, out_file)
+        except Exception as e:
+            raise e
 
 def load_system_from_file(path):
     """
