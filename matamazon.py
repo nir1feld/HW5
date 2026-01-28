@@ -1,5 +1,8 @@
 # TODO add all imports needed here
 import json
+import sys
+import os
+
 
 class InvalidIdException(Exception):
     pass
@@ -7,6 +10,10 @@ class InvalidIdException(Exception):
 
 class InvalidPriceException(Exception):
     pass
+
+
+default_order_quantity = 1
+default_query_max_price = None
 
 
 def check_ids(message, *ids):
@@ -17,16 +24,16 @@ def check_ids(message, *ids):
 
 class Entity:
     def __init__(self, id, name, city, address):
-        check_ids(f"{__name__} ID must be non negative", id)
+        check_ids(f"{type(self)} ID must be non negative", id)
 
         self.id = id
         self.name = name
         self.city = city
         self.address = address
 
-    def __rpr__(self):
+    def __repr__(self):
         class_name = type(self).__name__
-        return f"{class_name}(id='{self.id}', name='{self.name}', city ='{self.city}, address={self.address})"
+        return f"{class_name}(id={self.id}, name='{self.name}', city='{self.city}', address='{self.address}')"
 
 
 class Customer(Entity):
@@ -97,7 +104,7 @@ class Product:
     """
 
     def __init__(self, id, name, price, supplier_id, quantity):
-        check_ids(f"{__name__} ID must be non negative", id, supplier_id)
+        check_ids(f"{type(self)} ID must be non negative", id, supplier_id)
 
         if price < 0:
             raise InvalidPriceException(f"{__name__} Price must be non negative")
@@ -110,8 +117,8 @@ class Product:
 
     # TODO implement this class as instructed
 
-    def __rpr__(self):
-        return f"Product(id='{self.id}', name='{self.name}', price ='{self.price}, supplier_id={self.supplier_id}, quantity={self.quantity})"
+    def __repr__(self):
+        return f"Product(id={self.id}, name='{self.name}', price={self.price}, supplier_id={self.supplier_id}, quantity={self.quantity})"
 
     def __lt__(self, other):
         return self.price < other.price
@@ -141,7 +148,7 @@ class Order:
     """
 
     def __init__(self, id, customer_id, product_id, quantity, total_price):
-        check_ids(f"{__name__} ID must be non negative", id, product_id)
+        check_ids(f"{type(self)} ID must be non negative", id, product_id)
 
         if total_price < 0:
             raise InvalidPriceException(f"{__name__} Price must be non negative")
@@ -249,7 +256,7 @@ class MatamazonSystem:
         else:
             self.products[product.id] = product
 
-    def place_order(self, customer_id, product_id, quantity=1):
+    def place_order(self, customer_id, product_id, quantity = default_order_quantity):
         """
         Place an order for a product by a customer.
 
@@ -321,13 +328,13 @@ class MatamazonSystem:
                 - Additional InvalidIdException conditions as required by specification.
         """
         # TODO implement this method as instructed
-        check_ids(f"Remove object id {_id} must be non negative", id)
+        check_ids(f"Remove object id {_id} must be non negative", _id)
         class_type_clean = class_type.strip().lower()
         if class_type_clean == "order":
             if _id in self.orders:
                 order = self.orders.pop(_id)
                 if order.product_id in self.products:
-                    self.products[order.product_id] += order.quantity
+                    self.products[order.product_id].quantity += order.quantity
                 return order.quantity
             return None
 
@@ -341,6 +348,10 @@ class MatamazonSystem:
 
         elif class_type_clean == "supplier":
             for order in self.orders.values():
+
+                if order.product_id not in self.products:
+                    continue
+
                 order_product = self.products[order.product_id]
                 if order_product.supplier_id == _id:
                     raise InvalidIdException("Cannot remove supplier - still in use in existing orders")
@@ -358,7 +369,7 @@ class MatamazonSystem:
 
         return None
 
-    def search_products(self, query, max_price=None):
+    def search_products(self, query, max_price = default_query_max_price):
         """
         Search products by query in the product name, and optionally filter by max_price.
 
@@ -502,11 +513,151 @@ def load_system_from_file(path):
                     elif isinstance(val, Product):
                         system.products[val.id] = val
 
-                except Exception:
+
+                except (NameError, SyntaxError, TypeError):
                     continue
+
     except Exception as e:
         raise e
 
     return system
 
+
+wrong_arg_msg = "Usage: python3 matamazon.py -l < matamazon _log > -s < matamazon _system > -o <output_file > -os " \
+                "<out_ matamazon _system>\n "
+
+
+def on_wrong_arg():
+    sys.stderr.write(wrong_arg_msg)
+    exit(1)
+
+
+def swap_underscore(s):
+    return s.replace('_', ' ')
+
+
 # TODO all the main part here
+if __name__ == "__main__":
+    i = 1
+    argCount = len(sys.argv)
+
+    log_file = None
+    system_file = None
+    output_file = None
+    out_system_file = None
+
+    while i < argCount:
+        arg = sys.argv[i]
+        next_arg_exists = i + 1 < argCount
+
+        if arg == "-l":
+            if next_arg_exists:
+                log_file = sys.argv[i + 1]
+                i += 2
+
+            else:
+                on_wrong_arg()
+
+        elif arg == "-s":
+            if next_arg_exists:
+                system_file = sys.argv[i + 1]
+                i += 2
+
+            else:
+                on_wrong_arg()
+
+        elif arg == "-o":
+            if next_arg_exists:
+                output_file = sys.argv[i + 1]
+                i += 2
+
+            else:
+                on_wrong_arg()
+
+        elif arg == "-os":
+            if next_arg_exists:
+                out_system_file = sys.argv[i + 1]
+                i += 2
+
+            else:
+                on_wrong_arg()
+
+        else:
+            on_wrong_arg()
+
+    if log_file is None:
+        on_wrong_arg()
+
+    try:
+        system_file_exists = system_file and os.path.exists(system_file)
+        system = load_system_from_file(system_file) if system_file_exists else MatamazonSystem()
+
+        with open(log_file, 'r') as file:
+            for line in file:
+                sub_strings = line.strip().split()
+                if not sub_strings:
+                    continue
+
+                command = sub_strings[0]
+
+                if command == "register":
+                    entity_type = sub_strings[1]
+                    entity_id = int(sub_strings[2])
+                    name = swap_underscore(sub_strings[3])
+                    city = swap_underscore(sub_strings[4])
+                    address = swap_underscore(sub_strings[5])
+
+                    if entity_type == "customer":
+                        c = Customer(entity_id, name, city, address)
+                        system.register_entity(c, True)
+
+                    elif entity_type == "supplier":
+                        s = Supplier(entity_id, name, city, address)
+                        system.register_entity(s, False)
+
+                    else:
+                        raise Exception
+
+                elif command == "add" or command == "update":
+                    product_id = int(sub_strings[1])
+                    name = swap_underscore(sub_strings[2])
+                    price = float(sub_strings[3])
+                    supplier_id = int(sub_strings[4])
+                    quantity = int(sub_strings[5])
+
+                    product = Product(product_id, name, price, supplier_id, quantity)
+                    system.add_or_update_product(product)
+
+                elif command == "remove":
+                    order_id = int(sub_strings[1])
+                    class_type = sub_strings[2]
+                    system.remove_object(order_id, class_type)
+
+                elif command == "order":
+                    customer_id = int(sub_strings[1])
+                    product_id = int(sub_strings[2])
+                    quantity = default_order_quantity if len(sub_strings) <= 3 else int(sub_strings[3])
+                    system.place_order(customer_id, product_id, quantity)
+
+                elif command == "search":
+                    query = swap_underscore(sub_strings[1])
+                    max_price = default_query_max_price if len(sub_strings) <=2 else float(sub_strings[2])
+                    results = system.search_products(query, max_price)
+                    print(results)
+
+                else:
+                    raise Exception
+        if output_file:
+            with open(output_file, 'w') as file:
+                system.export_orders(file)
+        else:
+            system.export_orders(sys.stdout)
+
+        if out_system_file:
+            system.export_system_to_file(out_system_file)
+
+    except Exception as e:
+        print("The matamazon script has encountered an error")
+        exit(1)
+
+
