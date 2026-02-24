@@ -629,8 +629,8 @@ if __name__ == "__main__":
                     system.add_or_update_product(product)
 
                 elif command == "remove":
-                    class_type = sub_strings[1]
-                    order_id = int(sub_strings[2])
+                    order_id = int(sub_strings[1])
+                    class_type = sub_strings[2]
                     system.remove_object(order_id, class_type)
 
                 elif command == "order":
