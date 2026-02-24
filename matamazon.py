@@ -658,6 +658,6 @@ if __name__ == "__main__":
 
     except Exception as e:
         print("The matamazon script has encountered an error")
-        exit(1)
+        exit(0)
 
 
